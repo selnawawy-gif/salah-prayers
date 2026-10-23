@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Salah</string>
+    <string name="widget_prayer_times_name">Salah Prayer Times</string>
+    <string name="widget_prayer_times_desc">View today\'s prayer times and daily Salah progress.</string>
+    <string name="widget_daily_verse_name">Daily Quran Verse</string>
+    <string name="widget_daily_verse_desc">Renewable Quranic verse for daily reflection and inspiration.</string>
+</resources>

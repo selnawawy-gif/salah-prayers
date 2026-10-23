@@ -1,0 +1,6 @@
+{
+  "name": "Salah",
+  "description": "Prayer times with Adhan notifications, accurate Qibla compass, Quran & supplications, personal prayer history tracker, customizable silent modes, and home screen widgets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
