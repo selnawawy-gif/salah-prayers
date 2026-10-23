@@ -98,6 +98,9 @@ class SalahViewModel(application: Application) : AndroidViewModel(application) {
     val dailyVerses: StateFlow<List<DailyVerse>> = repository.observeDailyVerses()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), QuranData.INITIAL_DAILY_VERSES)
 
+    private val _isDetectingRegion = MutableStateFlow(false)
+    val isDetectingRegion: StateFlow<Boolean> = _isDetectingRegion.asStateFlow()
+
     private var countdownTickerJob: Job? = null
     private var audioSimulationJob: Job? = null
 
@@ -106,10 +109,43 @@ class SalahViewModel(application: Application) : AndroidViewModel(application) {
         startScheduleTicker()
         loadStats()
 
+        if (prefs.getIsAutoLocation()) {
+            autoDetectRegion()
+        }
+
         // Observe compass changes to trigger haptics when aligned
         viewModelScope.launch {
             compassHeading.collect {
                 compassManager.checkAndVibrateOnAlignment(_qiblaBearing.value)
+            }
+        }
+    }
+
+    fun autoDetectRegion(forceNotification: Boolean = false) {
+        viewModelScope.launch {
+            _isDetectingRegion.value = true
+            try {
+                val detection = com.example.util.RegionAutoDetector.detectRegion(getApplication())
+                prefs.setUserCity(detection.city)
+                prefs.setCalculationMethod(detection.recommendedMethod)
+                prefs.setIsAutoLocation(true)
+
+                updateQiblaCalculations()
+                PrayerAlarmScheduler.scheduleAllPrayers(getApplication())
+                PrayerTimesWidgetProvider.updateAllWidgets(getApplication())
+                DailyVerseWidgetProvider.updateAllWidgets(getApplication())
+
+                _syncMessage.value = "📍 Region detected: ${detection.city.name}, ${detection.city.country} (${detection.detectionSource})"
+                delay(3500L)
+                _syncMessage.value = null
+            } catch (e: Exception) {
+                if (forceNotification) {
+                    _syncMessage.value = "Could not auto-detect: ${e.localizedMessage}"
+                    delay(3000L)
+                    _syncMessage.value = null
+                }
+            } finally {
+                _isDetectingRegion.value = false
             }
         }
     }
@@ -234,6 +270,7 @@ class SalahViewModel(application: Application) : AndroidViewModel(application) {
 
     // Customization Settings updates
     fun selectCity(city: UserCity) {
+        prefs.setIsAutoLocation(false)
         prefs.setUserCity(city)
         updateQiblaCalculations()
         PrayerAlarmScheduler.scheduleAllPrayers(getApplication())
@@ -259,6 +296,14 @@ class SalahViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setDarkMode(mode: String) {
         prefs.setDarkMode(mode)
+    }
+
+    fun setThemeMode(mode: com.example.model.AppThemeMode) {
+        prefs.setThemeMode(mode)
+    }
+
+    fun cycleThemeMode(): com.example.model.AppThemeMode {
+        return prefs.cycleThemeMode()
     }
 
     fun set24HourClock(use24: Boolean) {
@@ -296,6 +341,10 @@ class SalahViewModel(application: Application) : AndroidViewModel(application) {
         prefs.setMinuteAdjustment(prayer, minutes)
         PrayerAlarmScheduler.scheduleAllPrayers(getApplication())
         PrayerTimesWidgetProvider.updateAllWidgets(getApplication())
+    }
+
+    fun setAppLanguage(lang: com.example.model.AppLanguage) {
+        prefs.setAppLanguage(lang)
     }
 
     override fun onCleared() {

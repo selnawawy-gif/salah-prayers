@@ -40,6 +40,8 @@ fun PrayerTimesScreen(
     val syncMessage by viewModel.syncMessage.collectAsState()
     val city by viewModel.prefs.userCity.collectAsState()
     val autoSilent by viewModel.prefs.autoSilentEnabled.collectAsState()
+    val isAutoLocation by viewModel.prefs.isAutoLocation.collectAsState()
+    val isDetectingRegion by viewModel.isDetectingRegion.collectAsState()
 
     var showCityDialog by remember { mutableStateOf(false) }
     var selectedPrayerForStatusDialog by remember { mutableStateOf<PrayerTimeItem?>(null) }
@@ -58,18 +60,36 @@ fun PrayerTimesScreen(
                             .testTag("city_selector_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.LocationOn,
+                            imageVector = if (isAutoLocation) Icons.Default.MyLocation else Icons.Default.LocationOn,
                             contentDescription = "Location",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Column {
-                            Text(
-                                text = city.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = city.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (isAutoLocation) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "Auto",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontSize = 9.sp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
                             Text(
                                 text = city.country,
                                 style = MaterialTheme.typography.bodySmall,
@@ -102,6 +122,24 @@ fun PrayerTimesScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
+                    }
+
+                    // Quick Theme Mode Toggle
+                    val currentThemeMode by viewModel.prefs.themeMode.collectAsState()
+                    val themeToggleIcon = when (currentThemeMode) {
+                        com.example.model.AppThemeMode.SYSTEM -> Icons.Default.BrightnessAuto
+                        com.example.model.AppThemeMode.LIGHT -> Icons.Default.LightMode
+                        com.example.model.AppThemeMode.DARK -> Icons.Default.DarkMode
+                    }
+                    IconButton(
+                        onClick = { viewModel.cycleThemeMode() },
+                        modifier = Modifier.testTag("quick_theme_toggle_button")
+                    ) {
+                        Icon(
+                            imageVector = themeToggleIcon,
+                            contentDescription = "Theme: ${currentThemeMode.fallbackTitle}. Tap to toggle.",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
 
                     // Qibla Shortcut
@@ -224,6 +262,8 @@ fun PrayerTimesScreen(
     if (showCityDialog) {
         CitySelectionDialog(
             currentCity = city,
+            isDetecting = isDetectingRegion,
+            onAutoDetect = { viewModel.autoDetectRegion(forceNotification = true) },
             onCitySelected = { selected ->
                 viewModel.selectCity(selected)
                 showCityDialog = false
@@ -586,6 +626,8 @@ fun PrayerTimeCard(
 @Composable
 fun CitySelectionDialog(
     currentCity: UserCity,
+    isDetecting: Boolean,
+    onAutoDetect: () -> Unit,
     onCitySelected: (UserCity) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -600,9 +642,56 @@ fun CitySelectionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Select City") },
+        title = { Text("Select City or Region") },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
+                // Auto-Detect Region Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isDetecting) {
+                            onAutoDetect()
+                            onDismiss()
+                        }
+                        .padding(bottom = 12.dp)
+                        .testTag("auto_detect_gps_button")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isDetecting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.MyLocation,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Auto-Detect My Region (GPS)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Text(
+                                text = "Auto-configure location & optimal calculation",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -673,7 +762,7 @@ fun PrayerStatusDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                PrayerStatus.values().forEach { status ->
+                PrayerStatus.entries.forEach { status ->
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()

@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val viewModel: SalahViewModel = viewModel()
             val themePreset by viewModel.prefs.themePreset.collectAsState()
-            val darkMode by viewModel.prefs.darkMode.collectAsState()
+            val themeMode by viewModel.prefs.themeMode.collectAsState()
             val currentScreen by viewModel.currentScreen.collectAsState()
             val context = LocalContext.current
 
@@ -67,6 +67,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            val currentLang by viewModel.prefs.appLanguage.collectAsState()
+
             // Back handler: return to Prayer Times if on a secondary tab
             if (currentScreen != SalahScreen.PRAYER_TIMES) {
                 BackHandler {
@@ -76,29 +78,37 @@ class MainActivity : ComponentActivity() {
 
             SalahTheme(
                 preset = themePreset,
-                darkModePreference = darkMode
+                themeMode = themeMode
             ) {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                    bottomBar = {
-                        SalahBottomNavigation(
-                            currentScreen = currentScreen,
-                            onScreenSelected = { viewModel.selectScreen(it) }
-                        )
-                    }
-                ) { innerPadding ->
-                    Crossfade(
-                        targetState = currentScreen,
-                        modifier = Modifier.padding(innerPadding),
-                        label = "screen_crossfade"
-                    ) { screen ->
-                        when (screen) {
-                            SalahScreen.PRAYER_TIMES -> PrayerTimesScreen(viewModel = viewModel)
-                            SalahScreen.QIBLA -> QiblaScreen(viewModel = viewModel)
-                            SalahScreen.QURAN_DUAS -> QuranDuasScreen(viewModel = viewModel)
-                            SalahScreen.HISTORY -> PrayerHistoryScreen(viewModel = viewModel)
-                            SalahScreen.SETTINGS -> CustomizationSettingsScreen(viewModel = viewModel)
+                androidx.compose.runtime.CompositionLocalProvider(
+                    androidx.compose.ui.platform.LocalLayoutDirection provides (
+                        if (currentLang.isRtl) androidx.compose.ui.unit.LayoutDirection.Rtl
+                        else androidx.compose.ui.unit.LayoutDirection.Ltr
+                    )
+                ) {
+                    Scaffold(
+                        modifier = Modifier.fillMaxSize(),
+                        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                        bottomBar = {
+                            SalahBottomNavigation(
+                                currentScreen = currentScreen,
+                                currentLang = currentLang,
+                                onScreenSelected = { viewModel.selectScreen(it) }
+                            )
+                        }
+                    ) { innerPadding ->
+                        Crossfade(
+                            targetState = currentScreen,
+                            modifier = Modifier.padding(innerPadding),
+                            label = "screen_crossfade"
+                        ) { screen ->
+                            when (screen) {
+                                SalahScreen.PRAYER_TIMES -> PrayerTimesScreen(viewModel = viewModel)
+                                SalahScreen.QIBLA -> QiblaScreen(viewModel = viewModel)
+                                SalahScreen.QURAN_DUAS -> QuranDuasScreen(viewModel = viewModel)
+                                SalahScreen.HISTORY -> PrayerHistoryScreen(viewModel = viewModel)
+                                SalahScreen.SETTINGS -> CustomizationSettingsScreen(viewModel = viewModel)
+                            }
                         }
                     }
                 }
@@ -123,6 +133,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun SalahBottomNavigation(
     currentScreen: SalahScreen,
+    currentLang: com.example.model.AppLanguage,
     onScreenSelected: (SalahScreen) -> Unit
 ) {
     NavigationBar(
@@ -130,7 +141,7 @@ fun SalahBottomNavigation(
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.primary
     ) {
-        SalahScreen.values().forEach { screen ->
+        SalahScreen.entries.forEach { screen ->
             val isSelected = screen == currentScreen
             val icon = when (screen) {
                 SalahScreen.PRAYER_TIMES -> Icons.Default.AccessTime
@@ -140,18 +151,27 @@ fun SalahBottomNavigation(
                 SalahScreen.SETTINGS -> Icons.Default.Settings
             }
 
+            val titleKey = when (screen) {
+                SalahScreen.PRAYER_TIMES -> "nav_prayer"
+                SalahScreen.QIBLA -> "nav_qibla"
+                SalahScreen.QURAN_DUAS -> "nav_quran"
+                SalahScreen.HISTORY -> "nav_tracker"
+                SalahScreen.SETTINGS -> "nav_settings"
+            }
+            val title = com.example.util.AppStrings.t(titleKey, currentLang)
+
             NavigationBarItem(
                 selected = isSelected,
                 onClick = { onScreenSelected(screen) },
                 icon = {
                     Icon(
                         imageVector = icon,
-                        contentDescription = screen.title
+                        contentDescription = title
                     )
                 },
                 label = {
                     Text(
-                        text = screen.title,
+                        text = title,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                     )
                 },

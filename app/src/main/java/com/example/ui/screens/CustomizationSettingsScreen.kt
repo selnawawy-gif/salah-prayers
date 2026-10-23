@@ -37,6 +37,8 @@ fun CustomizationSettingsScreen(
     val prefs = viewModel.prefs
     val currentTheme by prefs.themePreset.collectAsState()
     val darkMode by prefs.darkMode.collectAsState()
+    val themeMode by prefs.themeMode.collectAsState()
+    val currentLang by prefs.appLanguage.collectAsState()
     val use24h by prefs.use24Hour.collectAsState()
     val calcMethod by prefs.calculationMethod.collectAsState()
     val juristicMethod by prefs.juristicMethod.collectAsState()
@@ -57,6 +59,23 @@ fun CustomizationSettingsScreen(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
+                },
+                actions = {
+                    val quickIcon = when (themeMode) {
+                        AppThemeMode.SYSTEM -> Icons.Default.BrightnessAuto
+                        AppThemeMode.LIGHT -> Icons.Default.LightMode
+                        AppThemeMode.DARK -> Icons.Default.DarkMode
+                    }
+                    IconButton(
+                        onClick = { viewModel.cycleThemeMode() },
+                        modifier = Modifier.testTag("quick_theme_toggle_settings")
+                    ) {
+                        Icon(
+                            imageVector = quickIcon,
+                            contentDescription = "Switch theme (current: ${themeMode.fallbackTitle})",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
@@ -175,6 +194,50 @@ fun CustomizationSettingsScreen(
                 }
             }
 
+            // App Language Selection
+            item {
+                Text(
+                    text = "App Language",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            item {
+                val currentLang by prefs.appLanguage.collectAsState()
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Choose your preferred language",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(AppLanguage.entries) { lang ->
+                                val isSelected = lang == currentLang
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { viewModel.setAppLanguage(lang) },
+                                    label = { Text("${lang.nativeName} (${lang.displayName})") },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Theme & Appearance Customization
             item {
                 Text(
@@ -201,7 +264,7 @@ fun CustomizationSettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            items(AppThemePreset.values()) { preset ->
+                            items(AppThemePreset.entries) { preset ->
                                 val isSelected = preset == currentTheme
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -289,6 +352,89 @@ fun CustomizationSettingsScreen(
                                 checked = use24h,
                                 onCheckedChange = { viewModel.set24HourClock(it) }
                             )
+                        }
+                    }
+                }
+            }
+
+            // Location & Region Auto-Detection
+            item {
+                Text(
+                    text = "Location & Region Detection",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            item {
+                val city by prefs.userCity.collectAsState()
+                val isAutoLocation by prefs.isAutoLocation.collectAsState()
+                val isDetectingRegion by viewModel.isDetectingRegion.collectAsState()
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Auto-Detect Region",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Current: ${city.name}, ${city.country}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            Switch(
+                                checked = isAutoLocation,
+                                onCheckedChange = { enabled ->
+                                    prefs.setIsAutoLocation(enabled)
+                                    if (enabled) {
+                                        viewModel.autoDetectRegion(forceNotification = true)
+                                    }
+                                }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = "Uses GPS/network and timezone to auto-detect your location and select the officially recommended prayer calculation method for your country.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            onClick = { viewModel.autoDetectRegion(forceNotification = true) },
+                            enabled = !isDetectingRegion,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (isDetectingRegion) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Detecting Region...")
+                            } else {
+                                Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Detect Region Now")
+                            }
                         }
                     }
                 }
@@ -404,7 +550,7 @@ fun CustomizationSettingsScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        PrayerType.values().forEach { prayer ->
+                        PrayerType.entries.forEach { prayer ->
                             var currentAlert by remember { mutableStateOf(prefs.getAlertMode(prayer)) }
                             var expanded by remember { mutableStateOf(false) }
 
@@ -437,7 +583,7 @@ fun CustomizationSettingsScreen(
                                         expanded = expanded,
                                         onDismissRequest = { expanded = false }
                                     ) {
-                                        AlertMode.values().forEach { mode ->
+                                        AlertMode.entries.forEach { mode ->
                                             DropdownMenuItem(
                                                 text = { Text(mode.title) },
                                                 onClick = {
@@ -503,7 +649,7 @@ fun CustomizationSettingsScreen(
                                     expanded = methodMenuExpanded,
                                     onDismissRequest = { methodMenuExpanded = false }
                                 ) {
-                                    CalculationMethod.values().forEach { method ->
+                                    CalculationMethod.entries.forEach { method ->
                                         DropdownMenuItem(
                                             text = { Text(method.title) },
                                             onClick = {
@@ -526,7 +672,7 @@ fun CustomizationSettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            JuristicMethod.values().forEach { juristic ->
+                            JuristicMethod.entries.forEach { juristic ->
                                 FilterChip(
                                     selected = juristic == juristicMethod,
                                     onClick = { viewModel.setJuristicMethod(juristic) },

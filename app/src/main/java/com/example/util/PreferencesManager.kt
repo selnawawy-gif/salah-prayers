@@ -10,6 +10,7 @@ import com.example.model.HighLatitudeRule
 import com.example.model.JuristicMethod
 import com.example.model.PrayerType
 import com.example.model.UserCity
+import com.example.model.AppThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +25,9 @@ class PreferencesManager(context: Context) {
 
     private val _darkMode = MutableStateFlow(getDarkMode())
     val darkMode: StateFlow<String> = _darkMode.asStateFlow() // "system", "light", "dark"
+
+    private val _themeMode = MutableStateFlow(getThemeMode())
+    val themeMode: StateFlow<AppThemeMode> = _themeMode.asStateFlow()
 
     private val _use24Hour = MutableStateFlow(getUse24Hour())
     val use24Hour: StateFlow<Boolean> = _use24Hour.asStateFlow()
@@ -42,6 +46,28 @@ class PreferencesManager(context: Context) {
 
     private val _quietFocusModeEnabled = MutableStateFlow(getQuietFocusMode())
     val quietFocusModeEnabled: StateFlow<Boolean> = _quietFocusModeEnabled.asStateFlow()
+
+    private val _isAutoLocation = MutableStateFlow(getIsAutoLocation())
+    val isAutoLocation: StateFlow<Boolean> = _isAutoLocation.asStateFlow()
+
+    private val _appLanguage = MutableStateFlow(getAppLanguage())
+    val appLanguage: StateFlow<com.example.model.AppLanguage> = _appLanguage.asStateFlow()
+
+    fun getIsAutoLocation(): Boolean = prefs.getBoolean("is_auto_location", true)
+    fun setIsAutoLocation(enabled: Boolean) {
+        prefs.edit().putBoolean("is_auto_location", enabled).apply()
+        _isAutoLocation.value = enabled
+    }
+
+    fun getAppLanguage(): com.example.model.AppLanguage {
+        val code = prefs.getString("app_language", java.util.Locale.getDefault().language) ?: "en"
+        return com.example.model.AppLanguage.fromCode(code)
+    }
+
+    fun setAppLanguage(lang: com.example.model.AppLanguage) {
+        prefs.edit().putString("app_language", lang.code).apply()
+        _appLanguage.value = lang
+    }
 
     // City & Location
     fun getUserCity(): UserCity {
@@ -114,9 +140,23 @@ class PreferencesManager(context: Context) {
     // Dark Mode: "system", "light", "dark"
     fun getDarkMode(): String = prefs.getString("dark_mode", "system") ?: "system"
 
+    fun getThemeMode(): AppThemeMode = AppThemeMode.fromKey(getDarkMode())
+
     fun setDarkMode(mode: String) {
-        prefs.edit().putString("dark_mode", mode).apply()
-        _darkMode.value = mode
+        val normalized = AppThemeMode.fromKey(mode)
+        prefs.edit().putString("dark_mode", normalized.key).apply()
+        _darkMode.value = normalized.key
+        _themeMode.value = normalized
+    }
+
+    fun setThemeMode(mode: AppThemeMode) {
+        setDarkMode(mode.key)
+    }
+
+    fun cycleThemeMode(): AppThemeMode {
+        val next = getThemeMode().next()
+        setThemeMode(next)
+        return next
     }
 
     // 24 Hour clock
@@ -191,7 +231,7 @@ class PreferencesManager(context: Context) {
     }
 
     fun getAllMinuteAdjustments(): Map<PrayerType, Int> {
-        return PrayerType.values().associateWith { getMinuteAdjustment(it) }
+        return PrayerType.entries.associateWith { getMinuteAdjustment(it) }
     }
 
     // Daily Verse index for widget renewable cycle

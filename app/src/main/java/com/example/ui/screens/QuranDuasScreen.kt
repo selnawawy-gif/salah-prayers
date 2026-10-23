@@ -34,7 +34,7 @@ fun QuranDuasScreen(
     viewModel: SalahViewModel,
     modifier: Modifier = Modifier
 ) {
-    var selectedMainTab by remember { mutableStateOf(0) } // 0: Quran, 1: Supplications
+    var selectedMainTab by remember { mutableStateOf(0) } // 0: Quran, 1: Tajweed, 2: Supplications
 
     Scaffold(
         modifier = modifier.testTag("quran_duas_screen"),
@@ -42,7 +42,11 @@ fun QuranDuasScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = if (selectedMainTab == 0) "Quran Readings" else "Daily Supplications",
+                        text = when (selectedMainTab) {
+                            0 -> "Quran Readings"
+                            1 -> "Tajweed Rules (أحكام التجويد)"
+                            else -> "Daily Supplications (الأذكار)"
+                        },
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -58,7 +62,7 @@ fun QuranDuasScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Main Tab Switcher
+            // Main Tab Switcher (Quran, Tajweed, Adhkar)
             TabRow(
                 selectedTabIndex = selectedMainTab,
                 modifier = Modifier
@@ -70,21 +74,26 @@ fun QuranDuasScreen(
                 Tab(
                     selected = selectedMainTab == 0,
                     onClick = { selectedMainTab = 0 },
-                    text = { Text("📖 Holy Quran", fontWeight = FontWeight.Bold) }
+                    text = { Text("📖 Quran", fontWeight = FontWeight.Bold) }
                 )
                 Tab(
                     selected = selectedMainTab == 1,
                     onClick = { selectedMainTab = 1 },
-                    text = { Text("🤲 Daily Adhkar", fontWeight = FontWeight.Bold) }
+                    text = { Text("🎙️ Tajweed", fontWeight = FontWeight.Bold) }
+                )
+                Tab(
+                    selected = selectedMainTab == 2,
+                    onClick = { selectedMainTab = 2 },
+                    text = { Text("🤲 Adhkar", fontWeight = FontWeight.Bold) }
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (selectedMainTab == 0) {
-                QuranReaderTab(viewModel = viewModel)
-            } else {
-                SupplicationsTab(viewModel = viewModel)
+            when (selectedMainTab) {
+                0 -> QuranReaderTab(viewModel = viewModel)
+                1 -> TajweedScreen()
+                else -> SupplicationsTab(viewModel = viewModel)
             }
         }
     }
@@ -304,7 +313,7 @@ fun SupplicationsTab(viewModel: SalahViewModel) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(SupplicationCategory.values()) { category ->
+            items(SupplicationCategory.entries) { category ->
                 val isSelected = category == selectedCategory
                 FilterChip(
                     selected = isSelected,

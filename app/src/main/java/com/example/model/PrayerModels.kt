@@ -75,7 +75,10 @@ enum class AppThemePreset(val displayName: String, val primaryHex: Long, val sec
     ROYAL_GOLD("Royal Mosque", 0xFF1B3B2B, 0xFFE5B842),
     MIDNIGHT_BLUE("Midnight Kaaba", 0xFF132742, 0xFF38BDF8),
     DESERT_ROSE("Desert Twilight", 0xFF7C2D3A, 0xFFF59E0B),
-    FOREST_SERENITY("Forest Oasis", 0xFF164E43, 0xFF10B981)
+    FOREST_SERENITY("Forest Oasis", 0xFF164E43, 0xFF10B981),
+    IMPERIAL_AMETHYST("Imperial Amethyst", 0xFF581C87, 0xFFF472B6),
+    WARM_AMBER("Golden Amber", 0xFF92400E, 0xFFFBBF24),
+    SLATE_OBSIDIAN("Obsidian Minimal", 0xFF1E293B, 0xFF94A3B8)
 }
 
 enum class AlertMode(val title: String) {

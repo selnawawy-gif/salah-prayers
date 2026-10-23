@@ -390,7 +390,7 @@ fun EditRecordDialog(
                         text = "Set status for ${p.displayName}:",
                         fontWeight = FontWeight.Bold
                     )
-                    PrayerStatus.values().forEach { st ->
+                    PrayerStatus.entries.forEach { st ->
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
